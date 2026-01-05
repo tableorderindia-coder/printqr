@@ -1,129 +1,116 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Scan2Print – Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: Arial, sans-serif; background:#f6f6f6; padding:20px; margin:0; }
-    .box { background:#fff; max-width:900px; margin:auto; padding:25px; border-radius:12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-    .header { text-align:center; margin-bottom:25px; }
-    .logo { width: 50%; max-width: 280px; margin: auto; display: block; }
-    .summary { display:flex; gap:15px; margin:20px 0; }
-    .card { flex:1; background:#f8f9fa; padding:20px; border-radius:8px; text-align:center; border: 1px solid #eee; }
-    .card strong { font-size: 24px; color: #2d7ff9; }
-    .filters { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-    .filters select { padding:10px; border-radius:6px; border:1px solid #ddd; outline: none; background: #fff; cursor: pointer; }
-    table { width:100%; border-collapse:collapse; background: #fff; }
-    th, td { padding:14px; border-bottom:1px solid #eee; text-align:left; font-size: 14px; }
-    th { background:#f1f3f5; color: #495057; font-weight: 600; }
-    .status-pending { color: #fd7e14; font-weight: bold; font-style: italic; }
-    .btn-open { color: #2d7ff9; text-decoration: none; font-weight: bold; }
-    @media(max-width:600px){ .summary{flex-direction:column} }
-  </style>
+<meta charset="utf-8">
+<title>Scan2Print – Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{font-family:Arial;background:#f6f6f6;padding:20px;margin:0}
+.box{background:#fff;max-width:900px;margin:auto;padding:25px;border-radius:12px}
+.summary{display:flex;gap:15px;margin:20px 0}
+.card{flex:1;background:#f8f9fa;padding:20px;border-radius:8px;text-align:center}
+.card strong{font-size:24px;color:#2d7ff9}
+table{width:100%;border-collapse:collapse}
+th,td{padding:14px;border-bottom:1px solid #eee}
+th{background:#f1f3f5}
+.btn-open{color:#2d7ff9;font-weight:bold;text-decoration:none}
+.btn-delete{color:#dc3545;font-weight:bold;cursor:pointer}
+.status-pending{color:#fd7e14;font-style:italic}
+@media(max-width:600px){.summary{flex-direction:column}}
+</style>
 </head>
+
 <body>
-
 <div class="box">
-  <div class="header">
-    <img src="logo.png" class="logo">
-    <p style="color: #666; margin-top: 10px;">Real-time Print Queue</p>
-  </div>
 
-  <div class="summary">
-    <div class="card"><strong id="today">0</strong><br>Today</div>
-    <div class="card"><strong id="week">0</strong><br>This Week</div>
-    <div class="card"><strong id="month">0</strong><br>This Month</div>
-  </div>
+<h3 style="text-align:center">Print Queue</h3>
 
-  <div class="filters">
-    <select id="statusFilter" onchange="renderTable()">
-      <option value="ALL">All Statuses</option>
-      <option value="ACTIVE" selected>Active Files</option>
-      <option value="PENDING">Processing...</option>
-      <option value="DELETED">Deleted</option>
-    </select>
+<div class="summary">
+  <div class="card"><strong id="today">0</strong><br>Today</div>
+  <div class="card"><strong id="week">0</strong><br>This Week</div>
+  <div class="card"><strong id="month">0</strong><br>This Month</div>
+</div>
 
-    <select id="dateFilter" onchange="renderTable()">
-      <option value="TODAY">Today Only</option>
-      <option value="WEEK" selected>This Week</option>
-      <option value="MONTH">This Month</option>
-      <option value="ALL">All Time</option>
-    </select>
-  </div>
+<table>
+<thead>
+<tr>
+  <th>Time</th>
+  <th>File</th>
+  <th>Action</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
 
-  <table>
-    <thead><tr><th>Time</th><th>File Name</th><th>Action</th></tr></thead>
-    <tbody id="rows"></tbody>
-  </table>
 </div>
 
 <script>
-let allFiles = [];
 const params = new URLSearchParams(location.search);
 const shop = params.get("shop");
 const scriptUrl = "https://script.google.com/macros/s/AKfycbwL5Xphm1UO4fr_PjDaztBkRzvHqvAZgfAEL1vES3QHO4OeY286u1nfNLL8J0yBL0o0jQ/exec";
+let allFiles = [];
 
-function loadDashboardData(){
-  if(!shop) return;
+function loadData() {
   fetch(`${scriptUrl}?shop=${shop}&t=${Date.now()}`)
-  .then(r=>r.json())
-  .then(data=>{
-    document.getElementById("today").innerText = data.summary.today;
-    document.getElementById("week").innerText = data.summary.week;
-    document.getElementById("month").innerText = data.summary.month;
-    allFiles = data.files;
-    renderTable();
-  });
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("today").innerText = data.summary.today;
+      document.getElementById("week").innerText = data.summary.week;
+      document.getElementById("month").innerText = data.summary.month;
+      allFiles = data.files;
+      render();
+    });
 }
 
-function renderTable(){
-  const sFilter = document.getElementById("statusFilter").value;
-  const dFilter = document.getElementById("dateFilter").value;
+function render() {
   const tbody = document.getElementById("rows");
-  const now = new Date();
-  
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-
   tbody.innerHTML = "";
 
-  const filtered = allFiles.filter(f => {
-    const t = new Date(f.timestamp);
-    const matchesStatus = (sFilter === "ALL" || f.status === sFilter);
-    
-    let matchesDate = false;
-    if (dFilter === "ALL") matchesDate = true;
-    else if (dFilter === "TODAY") matchesDate = t.toDateString() === now.toDateString();
-    else if (dFilter === "MONTH") matchesDate = t.getMonth() === now.getMonth() && t.getFullYear() === now.getFullYear();
-    else if (dFilter === "WEEK") matchesDate = t >= startOfWeek;
+  const visible = allFiles.filter(f => f.status !== "DELETED");
 
-    return matchesStatus && matchesDate;
-  });
-
-  if(filtered.length === 0) {
-    tbody.innerHTML = "<tr><td colspan='3' style='text-align:center; color:#999; padding:20px;'>No files match the current filters.</td></tr>";
+  if (!visible.length) {
+    tbody.innerHTML =
+      "<tr><td colspan='3' style='text-align:center;color:#999'>No files</td></tr>";
     return;
   }
 
-  filtered.forEach(f => {
-    let actionHtml = "";
-    if(f.status === "ACTIVE") actionHtml = `<a href="${f.fileUrl}" target="_blank" class="btn-open">Open File</a>`;
-    else if (f.status === "PENDING") actionHtml = `<span class="status-pending">⌛ Processing...</span>`;
-    else actionHtml = `<span style="color:#999;">${f.status}</span>`;
+  visible.forEach(f => {
+    let action = "";
+    if (f.status === "ACTIVE") {
+      action = `
+        <a href="${f.fileUrl}" target="_blank" class="btn-open">Open</a>
+        &nbsp;|&nbsp;
+        <span class="btn-delete" onclick="deleteFile('${f.fileUrl}')">Delete</span>
+      `;
+    } else {
+      action = `<span class="status-pending">Processing…</span>`;
+    }
 
     tbody.innerHTML += `
       <tr>
-        <td>${new Date(f.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+        <td>${new Date(f.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</td>
         <td>${f.fileName}</td>
-        <td>${actionHtml}</td>
-      </tr>`;
+        <td>${action}</td>
+      </tr>
+    `;
   });
 }
 
-loadDashboardData();
-setInterval(loadDashboardData, 3000); 
+function deleteFile(fileUrl) {
+  if (!confirm("Remove this file from dashboard?")) return;
+
+  fetch(scriptUrl, {
+    method: "POST",
+    body: JSON.stringify({
+      _method: "DELETE",
+      shop: shop,
+      fileUrl: fileUrl
+    })
+  }).then(loadData);
+}
+
+loadData();
+setInterval(loadData, 3000);
 </script>
 </body>
 </html>
