@@ -145,26 +145,26 @@ function confirmDelete(fileUrl) {
 }
 
 function deleteFile(fileUrl) {
+  // Use a simple form-style request to avoid CORS preflight issues
   fetch(scriptUrl, {
     method: "POST",
-    headers: {'Content-Type': 'application/json'},
+    mode: "no-cors", // Crucial: avoid preflight OPTIONS check
     body: JSON.stringify({
       _method: "DELETE",
       shop: shop,
       fileUrl: fileUrl
     })
   })
-  .then(r => r.text())
-  .then(resp => {
-    // reload data after delete
-    loadDashboardData();
+  .then(() => {
+    // Because we use 'no-cors', we can't read the response text, 
+    // but we can assume success and trigger a reload.
+    setTimeout(loadDashboardData, 500); // Small delay to let the Sheet update
   })
   .catch(err => {
-    console.error("Delete failed:", err);
-    alert("Delete failed. Check console.");
+    console.error("Delete call failed:", err);
+    alert("Could not send delete request.");
   });
 }
-
 /* tiny helper to avoid markup issues */
 function escapeHtml(text) {
   if (!text) return "";
@@ -178,3 +178,4 @@ setInterval(loadDashboardData, 3000);
 </script>
 </body>
 </html>
+
