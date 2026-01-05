@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Scan2Print – Upload</title>
+  <script>UPLOADCARE_PUBLIC_KEY = "329e9d3e42f50590a779";</script>
+  <script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; background: #f6f6f6; padding: 20px; text-align: center; }
+    .box { background: #fff; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .logo { width: 50%; max-width: 250px; margin-bottom: 20px; }
+    .spinner { display: none; width: 40px; height: 40px; margin: 20px auto; border: 4px solid #f3f3f3; border-top: 4px solid #2d7ff9; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #refreshBtn { display: none; margin-top: 20px; padding: 10px 20px; background: #2d7ff9; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <img src="logo.png" class="logo">
+    <h3>Upload for Printing</h3>
+    <div id="uploadContainer">
+      <input type="hidden" role="uploadcare-uploader" data-clearable data-file-types="pdf jpg jpeg png doc docx" id="uploader" />
+    </div>
+    <div id="loader" class="spinner"></div>
+    <div id="status"></div>
+    <button id="refreshBtn" onclick="location.reload()">🔄 Upload Another</button>
+  </div>
+
+  <script>
+    const shop = new URLSearchParams(window.location.search).get("shop");
+    if (!shop) { document.getElementById("status").innerText = "❌ Missing Shop ID"; }
+
+    const widget = uploadcare.Widget("#uploader");
+    widget.onUploadComplete(info => {
+      document.getElementById("uploadContainer").style.display = "none";
+      document.getElementById("loader").style.display = "block";
+      document.getElementById("status").innerText = "Sending to Print Shop...";
+
+      fetch("https://script.google.com/macros/s/AKfycbwL5Xphm1UO4fr_PjDaztBkRzvHqvAZgfAEL1vES3QHO4OeY286u1nfNLL8J0yBL0o0jQ/exec", {
+        method: "POST",
+        body: JSON.stringify({ shop: shop, fileName: info.name, fileUrl: info.cdnUrl })
+      }).then(() => {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("status").innerHTML = "<b>✅ File Received!</b><br>Please visit the counter.";
+        document.getElementById("refreshBtn").style.display = "inline-block";
+      });
+    });
+  </script>
+</body>
+</html>
