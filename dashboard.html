@@ -4,43 +4,106 @@
 <meta charset="utf-8">
 <title>Scan2Print – Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{font-family:Arial;background:#f6f6f6;padding:20px;margin:0}
-.box{background:#fff;max-width:900px;margin:auto;padding:25px;border-radius:12px}
-.summary{display:flex;gap:15px;margin:20px 0}
-.card{flex:1;background:#f8f9fa;padding:20px;border-radius:8px;text-align:center}
-.card strong{font-size:24px;color:#2d7ff9}
-table{width:100%;border-collapse:collapse}
-th,td{padding:14px;border-bottom:1px solid #eee}
-th{background:#f1f3f5}
-.btn-open{color:#2d7ff9;font-weight:bold;text-decoration:none}
-.btn-delete{color:#dc3545;font-weight:bold;cursor:pointer}
-.status-pending{color:#fd7e14;font-style:italic}
-@media(max-width:600px){.summary{flex-direction:column}}
+body{
+  font-family:Arial;
+  background:#f6f6f6;
+  padding:20px;
+  margin:0
+}
+.box{
+  background:#fff;
+  max-width:900px;
+  margin:auto;
+  padding:25px;
+  border-radius:12px;
+  box-shadow:0 4px 15px rgba(0,0,0,0.1)
+}
+.header{
+  text-align:center;
+  margin-bottom:20px
+}
+.logo{
+  width:50%;
+  max-width:260px;
+  display:block;
+  margin:0 auto 10px
+}
+.summary{
+  display:flex;
+  gap:15px;
+  margin:20px 0
+}
+.card{
+  flex:1;
+  background:#f8f9fa;
+  padding:20px;
+  border-radius:8px;
+  text-align:center
+}
+.card strong{
+  font-size:24px;
+  color:#2d7ff9
+}
+table{
+  width:100%;
+  border-collapse:collapse
+}
+th,td{
+  padding:14px;
+  border-bottom:1px solid #eee
+}
+th{
+  background:#f1f3f5
+}
+.btn-open{
+  color:#2d7ff9;
+  font-weight:bold;
+  text-decoration:none
+}
+.btn-delete{
+  color:#dc3545;
+  font-weight:bold;
+  cursor:pointer
+}
+.status-pending{
+  color:#fd7e14;
+  font-style:italic
+}
+@media(max-width:600px){
+  .summary{flex-direction:column}
+}
 </style>
 </head>
 
 <body>
 <div class="box">
 
-<h3 style="text-align:center">Print Queue</h3>
+  <!-- HEADER WITH LOGO -->
+  <div class="header">
+    <img src="logo.png" class="logo">
+    <p style="color:#666;margin:0">Real-time Print Queue</p>
+  </div>
 
-<div class="summary">
-  <div class="card"><strong id="today">0</strong><br>Today</div>
-  <div class="card"><strong id="week">0</strong><br>This Week</div>
-  <div class="card"><strong id="month">0</strong><br>This Month</div>
-</div>
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="card"><strong id="today">0</strong><br>Today</div>
+    <div class="card"><strong id="week">0</strong><br>This Week</div>
+    <div class="card"><strong id="month">0</strong><br>This Month</div>
+  </div>
 
-<table>
-<thead>
-<tr>
-  <th>Time</th>
-  <th>File</th>
-  <th>Action</th>
-</tr>
-</thead>
-<tbody id="rows"></tbody>
-</table>
+  <!-- TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>File Name</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
 
 </div>
 
@@ -50,7 +113,9 @@ const shop = params.get("shop");
 const scriptUrl = "https://script.google.com/macros/s/AKfycbwL5Xphm1UO4fr_PjDaztBkRzvHqvAZgfAEL1vES3QHO4OeY286u1nfNLL8J0yBL0o0jQ/exec";
 let allFiles = [];
 
-function loadData() {
+function loadData(){
+  if(!shop) return;
+
   fetch(`${scriptUrl}?shop=${shop}&t=${Date.now()}`)
     .then(r => r.json())
     .then(data => {
@@ -62,13 +127,13 @@ function loadData() {
     });
 }
 
-function render() {
+function render(){
   const tbody = document.getElementById("rows");
   tbody.innerHTML = "";
 
   const visible = allFiles.filter(f => f.status !== "DELETED");
 
-  if (!visible.length) {
+  if(!visible.length){
     tbody.innerHTML =
       "<tr><td colspan='3' style='text-align:center;color:#999'>No files</td></tr>";
     return;
@@ -76,7 +141,7 @@ function render() {
 
   visible.forEach(f => {
     let action = "";
-    if (f.status === "ACTIVE") {
+    if(f.status === "ACTIVE"){
       action = `
         <a href="${f.fileUrl}" target="_blank" class="btn-open">Open</a>
         &nbsp;|&nbsp;
@@ -96,21 +161,22 @@ function render() {
   });
 }
 
-function deleteFile(fileUrl) {
-  if (!confirm("Remove this file from dashboard?")) return;
+function deleteFile(fileUrl){
+  if(!confirm("Remove this file from dashboard?")) return;
 
   fetch(scriptUrl, {
-    method: "POST",
-    body: JSON.stringify({
-      _method: "DELETE",
-      shop: shop,
-      fileUrl: fileUrl
+    method:"POST",
+    body:JSON.stringify({
+      _method:"DELETE",
+      shop:shop,
+      fileUrl:fileUrl
     })
   }).then(loadData);
 }
 
 loadData();
-setInterval(loadData, 3000);
+setInterval(loadData,3000);
 </script>
+
 </body>
 </html>
