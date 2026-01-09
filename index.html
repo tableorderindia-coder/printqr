@@ -3,49 +3,112 @@
 <head>
   <meta charset="utf-8">
   <title>Scan2Print – Upload</title>
-  <script>UPLOADCARE_PUBLIC_KEY = "329e9d3e42f50590a779";</script>
-  <script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial; background: #f6f6f6; padding: 20px; text-align: center; }
+    body { font-family: Arial, sans-serif; background: #f6f6f6; padding: 20px; text-align: center; }
     .box { background: #fff; max-width: 500px; margin: auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     .logo { width: 50%; max-width: 250px; margin-bottom: 20px; }
+    
+    /* Native File Input Styling */
+    .file-upload-wrapper { margin: 20px 0; }
+    input[type="file"] { display: none; }
+    .custom-file-upload {
+      border: 2px dashed #ccc; display: inline-block; padding: 20px 40px;
+      cursor: pointer; border-radius: 8px; color: #555; font-weight: bold; width: 80%;
+      transition: all 0.3s;
+    }
+    .custom-file-upload:hover { border-color: #2d7ff9; color: #2d7ff9; background: #f0f8ff; }
+
     .spinner { display: none; width: 40px; height: 40px; margin: 20px auto; border: 4px solid #f3f3f3; border-top: 4px solid #2d7ff9; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
     #refreshBtn { display: none; margin-top: 20px; padding: 10px 20px; background: #2d7ff9; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+    #fileNameDisplay { display: block; margin-top: 15px; font-size: 14px; color: #666; font-style: italic; }
   </style>
 </head>
 <body>
-  <div class="box">
-    <img src="logo.png" class="logo">
-    <h3>Upload for Printing</h3>
-    <div id="uploadContainer">
-      <input type="hidden" role="uploadcare-uploader" data-clearable data-file-types="pdf jpg jpeg png doc docx" id="uploader" />
-    </div>
-    <div id="loader" class="spinner"></div>
-    <div id="status"></div>
-    <button id="refreshBtn" onclick="location.reload()">🔄 Upload Another</button>
+
+<div class="box">
+  <img src="logo.png" class="logo">
+  <h3>Upload for Printing</h3>
+
+  <div id="uploadContainer">
+    <label class="custom-file-upload">
+      <input type="file" id="fileInput" accept=".pdf, .jpg, .jpeg, .png, .doc, .docx">
+      📂 Click to Select File
+    </label>
+    <div id="fileNameDisplay"></div>
   </div>
 
-  <script>
-    const shop = new URLSearchParams(window.location.search).get("shop");
-    if (!shop) { document.getElementById("status").innerText = "❌ Missing Shop ID"; }
+  <div id="loader" class="spinner"></div>
+  <div id="status"></div>
+  <button id="refreshBtn" onclick="location.reload()">🔄 Upload Another</button>
+</div>
 
-    const widget = uploadcare.Widget("#uploader");
-    widget.onUploadComplete(info => {
-      document.getElementById("uploadContainer").style.display = "none";
-      document.getElementById("loader").style.display = "block";
-      document.getElementById("status").innerText = "Sending to Print Shop...";
+<script>
+  // ⚠️ REPLACE THIS WITH YOUR NEW DEPLOYMENT URL
+  const scriptUrl = "https://script.google.com/macros/s/AKfycbwL5Xphm1UO4fr_PjDaztBkRzvHqvAZgfAEL1vES3QHO4OeY286u1nfNLL8J0yBL0o0jQ/exec"; 
 
-      fetch("https://script.google.com/macros/s/AKfycbwL5Xphm1UO4fr_PjDaztBkRzvHqvAZgfAEL1vES3QHO4OeY286u1nfNLL8J0yBL0o0jQ/exec", {
+  const shop = new URLSearchParams(window.location.search).get("shop");
+  if (!shop) document.getElementById("status").innerText = "❌ Missing Shop ID";
+
+  const fileInput = document.getElementById("fileInput");
+  const fileNameDisplay = document.getElementById("fileNameDisplay");
+
+  fileInput.addEventListener("change", function() {
+    if (this.files && this.files[0]) {
+      const file = this.files[0];
+      
+      // Limit file size to 50MB (Google Apps Script limit)
+      if (file.size > 50 * 1024 * 1024) {
+        alert("File is too large! Max size is 50MB.");
+        this.value = ""; 
+        return;
+      }
+
+      fileNameDisplay.innerText = "Selected: " + file.name;
+      uploadFile(file);
+    }
+  });
+
+  function uploadFile(file) {
+    document.getElementById("uploadContainer").style.display = "none";
+    document.getElementById("loader").style.display = "block";
+    document.getElementById("status").innerText = "Uploading... (Please wait)";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64Data = e.target.result.split(",")[1];
+      const mimeType = file.type;
+
+      // We use 'text/plain' to avoid CORS preflight, handled by the Script
+      fetch(scriptUrl, {
         method: "POST",
-        body: JSON.stringify({ shop: shop, fileName: info.name, fileUrl: info.cdnUrl })
-      }).then(() => {
+        mode: "no-cors", 
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          shop: shop,
+          fileName: file.name,
+          mimeType: mimeType,
+          fileData: base64Data
+        })
+      })
+      .then(() => {
+        // Assume success if network request clears
         document.getElementById("loader").style.display = "none";
         document.getElementById("status").innerHTML = "<b>✅ File Received!</b><br>Please visit the counter.";
         document.getElementById("refreshBtn").style.display = "inline-block";
+      })
+      .catch(err => {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("status").innerText = "❌ Upload Error. Please try again.";
+        console.error(err);
       });
-    });
-  </script>
+    };
+    
+    reader.readAsDataURL(file);
+  }
+</script>
+
 </body>
 </html>
